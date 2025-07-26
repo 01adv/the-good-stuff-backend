@@ -8,3 +8,5 @@ venv/
 env/
 myvenv/
 
+chroma/
+chroma_db/

@@ -1,12 +1,23 @@
+import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from langchain.chat_models import ChatOpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains.qa_with_sources import load_qa_chain
-from langchain.vectorstores import Pinecone as LangchainPinecone
-from langchain_community.embeddings import OpenAIEmbeddings
+import logging
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
+import json
+from rag_stuff.vector_search import vector_search
+import openai
+from dotenv import load_dotenv
+import os
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("main")
 
 # Load env
 load_dotenv()
@@ -20,67 +31,56 @@ app = FastAPI()
 class QueryRequest(BaseModel):
     query: str
 
-# Models and vectorstore
-llm = ChatOpenAI(temperature=0, openai_api_key=OPENAI_API_KEY)
-embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-vectorstore = LangchainPinecone.from_existing_index(index_name=INDEX_NAME, embedding=embeddings)
+logger.info("Ready to serve vector search queries.")
 
-# Custom prompt
-prompt_template = """
-You are a helpful SaaS assistant. Use only the following context to answer the user's question. If no relevant context exists, say so.
-
-Context:
-{context}
-
-Question: {question}
-"""
-prompt = PromptTemplate(input_variables=["context", "question"], template=prompt_template)
-
-# Chain using 'stuff' method
-qa_chain = load_qa_chain(llm, chain_type="stuff", prompt=prompt)
 
 @app.post("/ask")
 async def ask_query(request: QueryRequest):
+    logger.info(f"Received query: {request.query}")
     try:
-        # Step 1: Get top k results with score
-        results_with_score = vectorstore.similarity_search_with_score(request.query, k=10)
-
-        # Step 2: Filter results with good cosine similarity (threshold = 0.6 → distance <= 0.4)
-        good_matches = [(doc, score) for doc, score in results_with_score if score <= 0.4]
-
-        if not good_matches:
-            # Fallback if no good results
-            fallback_prompt = f"""The user asked: "{request.query}"
-
-We couldn't find relevant matches. Please provide a helpful answer based on your SaaS knowledge.
-"""
-            fallback_answer = llm.predict(fallback_prompt)
+        results = vector_search(request.query, top_k=10)
+        if not results:
+            logger.info("No results found for query. Using fallback RAG reasoning.")
+            # Fallback: Use OpenAI to generate a helpful answer
+            prompt = f"The user asked: '{request.query}'\n\nWe couldn't find relevant matches. Please provide a helpful answer based on your SaaS knowledge."
+            try:
+                openai.api_key = OPENAI_API_KEY
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "system", "content": "You are a helpful SaaS assistant."},
+                              {"role": "user", "content": prompt}],
+                    temperature=0.7
+                )
+                answer = response.choices[0].message.content.strip()
+            except Exception as e:
+                logger.error(f"OpenAI fallback failed: {e}")
+                answer = "No relevant matches found."
             return {
-                "answer": fallback_answer,
+                "answer": answer,
                 "sources": []
             }
 
-        # Step 3: Build RAG response using filtered context
-        filtered_docs = [doc for doc, _ in good_matches]
-        answer = qa_chain.run(input_documents=filtered_docs, question=request.query)
-
-        # Step 4: Cluster results by subcategory
+        # Build clusters by subcategory
         clustered_sources = {}
-        for doc, _ in good_matches:
-            meta = doc.metadata
+        for hit in results:
+            meta = hit["metadata"]
             subcat = meta.get("subcategory", "Uncategorized")
             if subcat not in clustered_sources:
                 clustered_sources[subcat] = []
             clustered_sources[subcat].append({
                 "title": meta.get("title"),
                 "url": meta.get("url"),
-                "content_type": meta.get("content_type")
+                "content_type": meta.get("content_type"),
+                "score": hit.get("score")
             })
 
+        # Compose answer from top result
+        answer = results[0]["document"] if results else "No relevant matches found."
+        logger.info("Returning answer and clusters.")
         return {
             "answer": answer,
             "clusters": clustered_sources
         }
-
     except Exception as e:
+        logger.error(f"Error processing query: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
