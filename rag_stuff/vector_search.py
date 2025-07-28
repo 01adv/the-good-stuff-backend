@@ -101,72 +101,42 @@ def vector_search(query: str, top_k: int = 5, filters: dict | None = None) -> li
         data = json.loads(query)
         query   = data.get("query", query)
         top_k   = data.get("top_k", top_k)
-        # filters = data.get("filters", filters)  # filters ignored for now
+        filters = data.get("filters", filters)
 
-    # if filters:
-    #     filters = preprocess_filters(filters)  # filters ignored for now
+    if filters:
+        filters = preprocess_filters(filters)
 
     # Embed and normalize query
     raw_embedding = embedding_fn([query])[0]
     query_vec = normalize(raw_embedding)
 
-    def run(qvec):
+    def run(qvec, where):
         query_params = {
             "query_embeddings": [qvec],
             "n_results": top_k,
-            "include": ["metadatas", "documents"]
+            "include": ["metadatas", "documents", "distances"]
         }
+        if where:
+            query_params["where"] = where
         logger.info(f"Querying with params: {query_params}")
         return collection.query(**query_params)
 
-    logger.info(f"Running vector search with query: {query}")
-    res = run(query_vec)
+    logger.info(f"Running vector search with query: {query}, filters: {filters}")
+    res = run(query_vec, filters)
+    logger.info(f"Raw search result: {json.dumps(res, indent=2, default=str)}")
 
+    if not res["metadatas"][0]:
+        logger.info("No results with filters, trying without filters")
+        res = run(query_vec, None)
+
+    # hits = [
+    #     {"metadata": m, "document": d, "score": 1 - x}
+    #     for m, d, x in zip(res["metadatas"][0], res["documents"][0], res["distances"][0])
+    # ]
+    # return hits
     hits = [
         {"metadata": m, "document": d, "score": 1 - x}
         for m, d, x in zip(res["metadatas"][0], res["documents"][0], res["distances"][0])
+        if x <= 1
     ]
     return hits
-
-
-
-
-# def vector_search(query: str, top_k: int = 5, filters: dict | None = None) -> list:
-#     logger.info(f"Collection '{COLLECTION_NAME}' initialized in vector_search")
-
-#     if isinstance(query, str) and query.lstrip().startswith("{"):
-#         data = json.loads(query)
-#         query   = data.get("query", query)
-#         top_k   = data.get("top_k", top_k)
-#         filters = data.get("filters", filters)
-
-#     if filters:
-#         filters = preprocess_filters(filters)
-
-#     # Embed and normalize query
-#     raw_embedding = embedding_fn([query])[0]
-#     query_vec = normalize(raw_embedding)
-
-#     def run(qvec, where):
-#         query_params = {
-#             "query_embeddings": [qvec],
-#             "n_results": top_k,
-#             "include": ["metadatas", "documents", "distances", "ids"]
-#         }
-#         if where:
-#             query_params["where"] = where
-#         logger.info(f"Querying with params: {query_params}")
-#         return collection.query(**query_params)
-
-#     logger.info(f"Running vector search with query: {query}, filters: {filters}")
-#     res = run(query_vec, filters)
-
-#     if not res["metadatas"][0]:
-#         logger.info("No results with filters, trying without filters")
-#         res = run(query_vec, None)
-
-#     hits = [
-#         {"metadata": m, "document": d, "score": 1 - x}
-#         for m, d, x in zip(res["metadatas"][0], res["documents"][0], res["distances"][0])
-#     ]
-#     return hits
