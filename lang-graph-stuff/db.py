@@ -54,6 +54,7 @@ import os
 from typing import List, Dict, Any, Optional
 from pinecone import Pinecone, ServerlessSpec
 from dotenv import load_dotenv
+from loguru import logger
 
 load_dotenv()
 
@@ -72,30 +73,36 @@ BATCH_SIZE = 100  # For efficient upserts
 
 class PineconeDB:
     def __init__(self):
+        logger.info("Initializing PineconeDB...")
         self.pc = Pinecone(api_key=PINECONE_API_KEY)
         self.env = PINECONE_ENV
         self.indexes = {}
         existing_indexes = self.pc.list_indexes().names()
+        logger.debug(f"Existing indexes: {existing_indexes}")
         for k, v in INDEXES.items():
             if v not in existing_indexes:
                 try:
+                    logger.info(f"Creating index '{v}' for bucket '{k}'...")
                     self.pc.create_index(
                         name=v,
                         dimension=DIMENSIONS,
                         metric=METRIC,
                         spec=ServerlessSpec(cloud="aws", region=self.env)
                     )
-                    print(f"Created index '{v}' for bucket '{k}'.")
+                    logger.success(f"Created index '{v}' for bucket '{k}'.")
                 except Exception as e:
-                    print(f"Error creating index '{v}': {e}")
+                    logger.error(f"Error creating index '{v}': {e}")
             else:
-                print(f"Index '{v}' already exists for bucket '{k}'.")
+                logger.info(f"Index '{v}' already exists for bucket '{k}'.")
             self.indexes[k] = self.pc.Index(v)
+        logger.success("PineconeDB initialization complete.")
 
     def upsert(self, bucket: str, vectors: List[Dict[str, Any]]):
         """Upsert vectors to the specified bucket/index in batches."""
+        logger.info(f"Upserting {len(vectors)} vectors to bucket '{bucket}'...")
         idx = self.indexes.get(bucket)
         if not idx:
+            logger.error(f"Unknown bucket: {bucket}")
             raise ValueError(f"Unknown bucket: {bucket}")
 
         total_upserted = 0
@@ -103,14 +110,16 @@ class PineconeDB:
             batch = vectors[i:i + BATCH_SIZE]
             idx.upsert(batch)
             total_upserted += len(batch)
-            print(f"Upserted batch of {len(batch)} vectors to {bucket} (total: {total_upserted}).")
+            logger.debug(f"Upserted batch of {len(batch)} vectors to {bucket} (total: {total_upserted}).")
 
-        print(f"Completed upsert for {bucket} with {total_upserted} vectors.")
+        logger.success(f"Completed upsert for {bucket} with {total_upserted} vectors.")
 
     def query(self, bucket: str, embedding: List[float], top_k: int = 3, filter: Optional[Dict[str, Any]] = None):
         """Query the specified bucket/index with optional metadata filter."""
+        logger.info(f"Querying bucket '{bucket}' with top_k={top_k} and filter={filter}...")
         idx = self.indexes.get(bucket)
         if not idx:
+            logger.error(f"Unknown bucket: {bucket}")
             raise ValueError(f"Unknown bucket: {bucket}")
 
         query_params = {
@@ -121,7 +130,9 @@ class PineconeDB:
         if filter:
             query_params["filter"] = filter  # E.g., {"use_case": "increase_registration"}
 
-        return idx.query(**query_params)
+        result = idx.query(**query_params)
+        logger.success(f"Query completed for bucket '{bucket}'.")
+        return result
 
 # Singleton for app
 pinecone_db = PineconeDB()
