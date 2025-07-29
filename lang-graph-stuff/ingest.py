@@ -127,7 +127,8 @@ def ingest():
                 "use_case": item.get("use_case", ""),
                 "date": item.get("date", None),
                 "chunk_index": item.get("chunk_index", 0),
-                "url": item.get("url", "")
+                "url": item.get("url", ""),
+                "category": item.get("category", "")
             }
 
             # Embed the text_chunk
