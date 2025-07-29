@@ -22,3 +22,7 @@ Key requirements:
 - Best Practices: Ensure scalability, async operations, and no chatbot-like behavior—just render results. Do not include frontend code.
 
 Generate the full code, including all files, with explanations in comments. Make it production-ready and easy to run with 'uvicorn main:app --reload'.
+
+## Imporovements
+
+add parallelism in retrievation of data from buckets
