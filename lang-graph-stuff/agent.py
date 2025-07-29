@@ -15,6 +15,9 @@ from db import pinecone_db
 from dotenv import load_dotenv
 import time
 from pydantic import BaseModel, Field
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import functools
 
 # --- Logging setup ---
 logging.basicConfig(
@@ -113,24 +116,46 @@ def routing_node(state: AgentState) -> AgentState:
     state.funnel_stage = resp.funnel_stage
     return state
 
+
 def retrieval_node(state: AgentState) -> AgentState:
+    """Parallel retrieval using ThreadPoolExecutor - no async complications"""
     logger.info(f"Retrieval node: buckets={state.buckets}")
     if not state.buckets:
         logger.warning("No buckets found for retrieval.")
         return state  # Fallback: no retrieval
     
-    for bucket in state.buckets:
-        res = pinecone_db.query(bucket, state.embedding, top_k=3)
-        logger.info(f"Retrieved for bucket '{bucket}': {len(res['matches'])} matches")
+    # Function to retrieve from a single bucket
+    def retrieve_from_bucket(bucket):
+        try:
+            res = pinecone_db.query(bucket, state.embedding, top_k=3)
+            logger.info(f"Retrieved for bucket '{bucket}': {len(res['matches'])} matches")
+            
+            # Convert ScoredVector objects to serializable dictionaries
+            serializable_matches = []
+            for match in res["matches"]:
+                serializable_matches.append(scored_vector_to_dict(match))
+            
+            return bucket, serializable_matches
+        except Exception as e:
+            logger.error(f"Error retrieving from bucket '{bucket}': {str(e)}")
+            return bucket, []
+    
+    # Use ThreadPoolExecutor to run queries in parallel
+    with ThreadPoolExecutor(max_workers=min(len(state.buckets), 5)) as executor:
+        # Submit all bucket queries
+        future_to_bucket = {
+            executor.submit(retrieve_from_bucket, bucket): bucket 
+            for bucket in state.buckets
+        }
         
-        # Convert ScoredVector objects to serializable dictionaries
-        serializable_matches = []
-        for match in res["matches"]:
-            serializable_matches.append(scored_vector_to_dict(match))
-        
-        state.retrieval_results[bucket] = serializable_matches
+        # Collect results as they complete
+        for future in future_to_bucket:
+            bucket, matches = future.result()
+            state.retrieval_results[bucket] = matches
     
     return state
+
+
 
 def generation_node(state: AgentState) -> AgentState:
     # Check confidence (filter low-similarity results)
