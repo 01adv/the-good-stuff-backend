@@ -788,7 +788,7 @@ RULES:
 1. SERVICES BUCKET: Include results with score > 0.3 OR if intent matches relevant_services
 2. CASE-STUDIES & INSIGHTS: Only include results with score > 0.4
 3. Extract title, url, category from metadata accurately
-4. Only include URLs starting with 'https://'
+4. Only include URLs starting with 'https://', is unique, and among duplicates keep the one with the highest similarity score
 5. Focus on SaaS optimization and relevant service areas
 
 For Company Profile Queries: Show comprehensive overview with multiple services
