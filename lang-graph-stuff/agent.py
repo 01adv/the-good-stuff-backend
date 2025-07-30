@@ -824,7 +824,7 @@ Given context: {{context}}, funnel_stage: {{funnel_stage}}, query: {{query}}, an
 - use_case: array of objects with title, url, category (for services/solutions)
 - case_study: array of objects with title, url, category (for success stories/proof)
 - insights: array of objects with title, url, category (for educational content)
-- message: comprehensive summary incorporating The Good's expertise
+- message: concise summary incorporating The Good's expertise and recommendations.
 
 RESPONSE STRATEGY BY FUNNEL STAGE:
 
@@ -844,7 +844,7 @@ RESPONSE STRATEGY BY FUNNEL STAGE:
 - Message should be solution-focused with clear next steps
 
 GUIDELINES:
-- Extract title, url, and category from context metadata accurately
+- - Extract title, url, and category from context metadata accurately **only if url starts with 'https://', is unique, and among duplicates keep the one with the highest similarity score**
 - If similarity < 0.4, return empty arrays but provide helpful message with general service suggestions
 - Create comprehensive responses that combine direct knowledge with retrieved content
 - Maintain The Good's professional tone focused on data-driven optimization
