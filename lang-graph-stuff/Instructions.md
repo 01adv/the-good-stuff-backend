@@ -26,3 +26,24 @@ Generate the full code, including all files, with explanations in comments. Make
 ## Imporovements
 
 add parallelism in retrievation of data from buckets
+
+## saloni's
+
+Service > Case study > Insight
+Job is to map to relevant services (with high confidence) and supplement them with case studies and insights
+
+The Good is a consulting service that does XYZ. Typical user funnel looks like XYZ.
+
+In teh XYZ, make sure you refer to their use cases / services
+Our list of services is
+
+Awareness → Interest → Lead
+→ They discover your brand → engage with content → share contact info
+Lead → MQL (Marketing Qualified Lead) → SQL (Sales Qualified Lead)
+→ You nurture them → they show buying signals → sales team qualifies them
+SQL → Opportunity → Closed-Won
+→ Sales demos & proposals → decision-making → they sign the contract
+Onboarding → Activation → Retention
+→ You implement the product → they start using it → continue using month after month
+Retention → Expansion → Advocacy
+→ They renew → buy more or upgrade → refer others or give testimonials
