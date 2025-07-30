@@ -12,13 +12,12 @@ from typing import Dict, Any, List
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from db import pinecone_db
+from lang_graph_stuff.db import pinecone_db
 from dotenv import load_dotenv
 import time
 from pydantic import BaseModel, Field
-import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import functools
+
 
 
 # --- Logging setup ---

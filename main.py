@@ -6,7 +6,7 @@ POST /search: {query: str, session_id: str} -> {use_case, case_study, insights, 
 """
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from agent import run_agent
+from lang_graph_stuff.agent import run_agent
 from dotenv import load_dotenv
 from loguru import logger  # Ensure installed: pip install loguru
 from typing import List
