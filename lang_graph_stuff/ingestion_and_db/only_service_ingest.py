@@ -69,20 +69,25 @@ def replace_services_index(json_path: str = None):
 
     vectors = []
     for item in use_case_chunks:
-        text = item.get("text_chunk")
-        if not text:
+        text = item.get("text_chunk", "")
+        title = item.get("title", "")
+        use_case = item.get("use_case", "")
+
+        # Combine title, use_case, and text_chunk for embedding
+        combined_text = f"{title}\n{use_case}\n{text}".strip()
+        if not combined_text:
             continue
 
         meta = {
-            "title": item.get("title", ""),
-            "use_case": item.get("use_case", ""),
+            "title": title,
+            "use_case": use_case,
             # "date": item.get("date", None),
             "chunk_index": item.get("chunk_index", 0),
             "url": item.get("url", "")
         }
 
-        emb = embeddings.embed_query(text)
-        title_slug = generate_slug(meta["title"])
+        emb = embeddings.embed_query(combined_text)
+        title_slug = generate_slug(title)
         vector_id = f"services-{title_slug}-{meta['chunk_index']}"
 
         vectors.append({
