@@ -1063,7 +1063,7 @@ def generation_node(state: AgentState) -> AgentState:
             context[bucket] = service_matches
         else:
             # Strict scoring for case-studies and insights
-            high_conf = [m for m in matches if m.get("score", 0) > 0.4]
+            high_conf = [m for m in matches if m.get("score", 0) > 0.35]
             if high_conf:
                 context[bucket] = high_conf
     
