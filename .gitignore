@@ -1,0 +1,12 @@
+.env*
+!.env.example
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+# Ignore virtual environment directories
+venv/
+env/
+myvenv/
+
+chroma/
+chroma_db/
